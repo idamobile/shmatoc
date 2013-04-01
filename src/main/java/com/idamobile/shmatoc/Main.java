@@ -1,5 +1,6 @@
 package com.idamobile.shmatoc;
 
+import com.idamobile.shmatoc.util.Strings;
 import com.squareup.proto.ProtoFile;
 import com.squareup.proto.ProtoSchemaParser;
 
@@ -10,12 +11,14 @@ public class Main {
 
     private static final String IN_PARAM = "--proto_files";
     private static final String PACKAGE_PARAM = "--package_out";
+    private static final String IMPORTS_PARAM = "--add_java_imports";
     private static final String HELP_PARAM = "--help";
 
     public static void main(String[] args) throws IOException {
         String files = resolveProtoFiles(args);
         String packageOut = resolvePackage(args);
-        if (resolveHelp(args) || isEmpty(files) || isEmpty(packageOut)) {
+        String imports = resolveImports(args);
+        if (resolveHelp(args) || Strings.isEmpty(files) || Strings.isEmpty(packageOut)) {
             printHelp();
             return;
         }
@@ -23,20 +26,21 @@ public class Main {
         File dir = createPackage(packageOut);
 
         String[] fileArr = files.split(";");
+        String[] importsArr = imports == null ? new String[0] : imports.split(";");
         for (String fileName : fileArr) {
-            if (!isEmpty(fileName)) {
-                parseFile(new File(fileName), packageOut, dir);
+            if (!Strings.isEmpty(fileName)) {
+                parseFile(new File(fileName), packageOut, importsArr, dir);
             }
         }
     }
 
-    private static void parseFile(File file, String packageOut, File dir) throws IOException {
+    private static void parseFile(File file, String packageOut, String[] importsArr, File dir) throws IOException {
         if (file.exists()) {
             if (file.isDirectory()) {
                 File[] files = file.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        parseFile(f, packageOut, dir);
+                        parseFile(f, packageOut, importsArr, dir);
                     }
                 }
             } else {
@@ -45,7 +49,7 @@ public class Main {
                     ProtoFile protoFile = ProtoSchemaParser.parse(file);
                     ProtoToJavaConverter protoToJavaConverter = new ProtoToJavaConverter(
                             dir, packageOut, new ProtoToJavaConverter.DefaultNameCallback());
-                    protoToJavaConverter.save(protoFile);
+                    protoToJavaConverter.save(protoFile, importsArr);
                 } catch (IllegalStateException ex) {
                     System.out.println(ex);
                 }
@@ -62,15 +66,12 @@ public class Main {
         return dir;
     }
 
-    private static boolean isEmpty(String str) {
-        return str == null || str.length() == 0;
-    }
-
     private static void printHelp() {
         System.out.println("use: shmatoc " + PACKAGE_PARAM + " com.output.package " + IN_PARAM + " Some.proto Files.proto");
         System.out.println("Commands:");
         System.out.println("\t" + IN_PARAM + ": input protobuf files");
         System.out.println("\t" + PACKAGE_PARAM + ": output package");
+        System.out.println("\t" + IMPORTS_PARAM + ": append this imports to generated java files");
         System.out.println("\t" + HELP_PARAM + ": prints this message");
     }
 
@@ -80,6 +81,10 @@ public class Main {
 
     private static String resolveProtoFiles(String[] args) {
         return collectValues(args, IN_PARAM, ";");
+    }
+
+    private static String resolveImports(String[] args) {
+        return collectValues(args, IMPORTS_PARAM, ";");
     }
 
     private static boolean resolveHelp(String[] args) {
@@ -106,7 +111,7 @@ public class Main {
                     paramFound = true;
                 }
             } else if (paramFound) {
-                if (builder.length() > 0 && !isEmpty(separator)) {
+                if (builder.length() > 0 && !Strings.isEmpty(separator)) {
                     builder.append(separator);
                 }
                 builder.append(val);

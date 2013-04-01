@@ -6,6 +6,10 @@ import java.util.Set;
 
 public class Strings {
 
+    public static boolean isEmpty(String str) {
+        return str == null || str.length() == 0;
+    }
+
     private static final Set<Character> SEPARATORS = new HashSet<Character>(Arrays.asList(new Character[]{
             '-', '_', '+', ' '
     }));

@@ -28,13 +28,13 @@ public class ProtoToJavaConverter {
         this.nameCallback = nameCallback;
     }
 
-    public void save(ProtoFile protoFile) {
+    public void save(ProtoFile protoFile, String[] importsArr) {
         this.protoFile = protoFile;
         this.protoClassName = extractClassName(protoFile);
 
         for (Type type : protoFile.getTypes()) {
             if (type instanceof MessageType) {
-                saveMessage((MessageType) type);
+                saveMessage((MessageType) type, importsArr);
             } else if (type instanceof EnumType) {
                 saveEnum((EnumType) type, null);
             }
@@ -51,7 +51,7 @@ public class ProtoToJavaConverter {
         }
     }
 
-    private void saveMessage(MessageType message) {
+    private void saveMessage(MessageType message, String[] importsArr) {
         Map<String, String> enumNames = new HashMap<String, String>();
         for (Type type : message.getNestedTypes()) {
             if (type instanceof EnumType) {
@@ -59,7 +59,7 @@ public class ProtoToJavaConverter {
             }
         }
 
-        StringBuilder builder = saveType(message);
+        StringBuilder builder = saveType(message, importsArr);
         builder.append("@Data\n");
         builder.append("@Mapper(protoClass = ")
                 .append(protoClassName)
@@ -106,7 +106,7 @@ public class ProtoToJavaConverter {
     }
 
     private String saveEnum(EnumType enumType, MessageType message) {
-        StringBuilder builder = saveType(enumType);
+        StringBuilder builder = saveType(enumType, null);
         builder.append("@Mapper(protoClass = ")
                 .append(protoClassName)
                 .append(".");
@@ -134,10 +134,10 @@ public class ProtoToJavaConverter {
         return enumName;
     }
 
-    private StringBuilder saveType(Type type) {
+    private StringBuilder saveType(Type type, String[] importsArr) {
         StringBuilder builder = new StringBuilder();
         setPackage(builder);
-        setImports(type, builder);
+        setImports(type, builder, importsArr);
         return builder;
     }
 
@@ -145,7 +145,7 @@ public class ProtoToJavaConverter {
         builder.append("package " + packageName + ";\n\n");
     }
 
-    private void setImports(Type type, StringBuilder builder) {
+    private void setImports(Type type, StringBuilder builder, String[] importsArr) {
         Set<String> classNames = new TreeSet<String>();
 
         classNames.add("com.shaubert.protomapper.annotations.Field");
@@ -154,6 +154,13 @@ public class ProtoToJavaConverter {
             classNames.add("lombok.Data");
         }
         classNames.add(protoFile.getJavaPackage() + "." + protoClassName);
+        if (importsArr != null) {
+            for (String importEntry : importsArr) {
+                if (!Strings.isEmpty(importEntry)) {
+                    classNames.add(importEntry);
+                }
+            }
+        }
         appendImports(builder, classNames);
 
         if (type instanceof MessageType) {
