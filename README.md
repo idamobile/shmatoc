@@ -27,6 +27,7 @@ Let's say you have the following protobuf protocol `Sample.proto`:
         }
         
 and you want this amazing data classes:
+* `Entry.java`
 
         package com.output.sample;
 
@@ -43,6 +44,8 @@ and you want this amazing data classes:
             @Field private String key;
             @Field(optional = true) private String value;
         }
+
+* and `Map.java`
 
         package com.output.sample;
         
