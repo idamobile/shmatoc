@@ -41,11 +41,12 @@ public class Main {
                 }
             } else {
                 try {
+                    System.out.println("processing: " + file.getName());
                     ProtoFile protoFile = ProtoSchemaParser.parse(file);
                     ProtoToJavaConverter protoToJavaConverter = new ProtoToJavaConverter(
                             dir, packageOut, new ProtoToJavaConverter.DefaultNameCallback());
                     protoToJavaConverter.save(protoFile);
-                } catch (IOException ex) {
+                } catch (IllegalStateException ex) {
                     System.out.println(ex);
                 }
             }

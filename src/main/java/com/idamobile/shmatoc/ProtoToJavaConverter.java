@@ -66,21 +66,19 @@ public class ProtoToJavaConverter {
                 .append(".")
                 .append(message.getName())
                 .append(".class)\n");
-        String className = nameCallback.getName(message.getName());
+        String className = nameCallback.getClassName(message.getName());
         builder.append("public class ").append(className).append(" implements Serializable {\n");
         for (MessageType.Field field : message.getFields()) {
-            builder.append("    @Field");
-            if (isOptional(field)) {
-                builder.append("(optional = true)");
-            }
-            builder.append(" private ");
+            String fieldName = nameCallback.getFieldName(field.getName(), field.getType());
+            String fieldAnnotations = buildFieldAnnotation(isOptional(field), fieldName, field.getName());
+            builder.append("    private ").append(fieldAnnotations).append(' ');
             String mappedTypeName = enumNames.containsKey(field.getType()) ? enumNames.get(field.getType()) : getMappedTypeName(field);
             if (isRepeated(field)) {
                 builder.append("List<").append(mappedTypeName).append(">");
             } else {
                 builder.append(mappedTypeName);
             }
-            builder.append(" ").append(field.getName());
+            builder.append(" ").append(fieldName);
             if (isRepeated(field)) {
                 builder.append(" = new ArrayList<").append(mappedTypeName).append(">()");
             }
@@ -91,11 +89,25 @@ public class ProtoToJavaConverter {
         saveJavaFile(builder.toString(), className);
     }
 
+    private String buildFieldAnnotation(boolean optional, String fieldName, String protoFieldName) {
+        StringBuilder builder = new StringBuilder("@Field");
+        boolean diffNames = !fieldName.equals(protoFieldName);
+        if (optional || diffNames) {
+            builder.append("(");
+            if (diffNames) {
+                builder.append("name = \"" + protoFieldName + "\", ");
+            }
+            if (optional) {
+                builder.append("optional = true, ");
+            }
+            builder.replace(builder.length() - 2, builder.length(), ")");
+        }
+        return builder.toString();
+    }
+
     private String saveEnum(EnumType enumType, MessageType message) {
         StringBuilder builder = saveType(enumType);
         builder.append("@Mapper(protoClass = ")
-                .append(protoFile.getJavaPackage())
-                .append(".")
                 .append(protoClassName)
                 .append(".");
         if (message != null) {
@@ -104,14 +116,14 @@ public class ProtoToJavaConverter {
         builder.append(enumType.getName())
                 .append(".class, isEnum = true)\n");
 
-        String enumName = nameCallback.getName("" + (message == null ? "" : message.getName()) + enumType.getName());
+        String enumName = nameCallback.getClassName("" + (message == null ? "" : message.getName()) + enumType.getName());
         builder.append("public enum ").append(enumName).append(" {\n");
         for (EnumType.Value value : enumType.getValues()) {
             builder.append("    ").append(value.getName()).append("(").append(value.getTag()).append("),\n");
         }
         builder.replace(builder.length() - 2, builder.length(), ";\n");
         builder.append("\n");
-        builder.append("    @Field public final int code;\n\n");
+        builder.append("    public final @Field int code;\n\n");
         builder.append("    private ").append(enumName).append("(int code) {\n");
         builder.append("        this.code = code;\n");
         builder.append("    }\n");
@@ -138,7 +150,9 @@ public class ProtoToJavaConverter {
 
         classNames.add("com.shaubert.protomapper.annotations.Field");
         classNames.add("com.shaubert.protomapper.annotations.Mapper");
-        classNames.add("lombok.Data");
+        if (!(type instanceof EnumType)) {
+            classNames.add("lombok.Data");
+        }
         classNames.add(protoFile.getJavaPackage() + "." + protoClassName);
         appendImports(builder, classNames);
 
@@ -200,7 +214,7 @@ public class ProtoToJavaConverter {
             if (optional || repeated) {
                 result = "Boolean";
             } else {
-                result = "bool";
+                result = "boolean";
             }
         } else if (t.equals("string")) {
             result = "String";
@@ -247,14 +261,28 @@ public class ProtoToJavaConverter {
     }
 
     public interface NameCallback {
-        String getName(String name);
+        String getClassName(String name);
+        String getFieldName(String name, String protoType);
         String getType(String type);
     }
 
     public static class DefaultNameCallback implements NameCallback {
         @Override
-        public String getName(String name) {
+        public String getClassName(String name) {
             return name.replaceAll("(ProtobufDTO)|(DTO)", "");
+        }
+
+        @Override
+        public String getFieldName(String name, String protoType) {
+            if ("bool".equals(protoType)) {
+                int isIndex = name.indexOf("is");
+                if (isIndex == 0 && name.length() > 2) {
+                    if (Character.isUpperCase(name.charAt(2))) {
+                        return Strings.lowerCaseLetter(name.substring(2), 0);
+                    }
+                }
+            }
+            return name;
         }
 
         @Override

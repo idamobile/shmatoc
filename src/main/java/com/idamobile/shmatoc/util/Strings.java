@@ -38,4 +38,14 @@ public class Strings {
     public static void upperCaseLetter(StringBuilder builder, int charIndex) {
         builder.replace(charIndex, charIndex + 1, String.valueOf(builder.charAt(charIndex)).toUpperCase());
     }
+
+    public static String lowerCaseLetter(String string, int charIndex) {
+        StringBuilder builder = new StringBuilder(string);
+        lowerCaseLetter(builder, charIndex);
+        return builder.toString();
+    }
+
+    public static void lowerCaseLetter(StringBuilder builder, int charIndex) {
+        builder.replace(charIndex, charIndex + 1, String.valueOf(builder.charAt(charIndex)).toLowerCase());
+    }
 }
